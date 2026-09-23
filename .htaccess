@@ -1,0 +1,149 @@
+# ==========================================================================
+# Nature's Village Resort — Apache config for static hosting (Hostinger)
+# Clean URLs to match the canonical/OG/sitemap URLs already in every page
+# (e.g. /about/ instead of /about.html), HTTPS enforcement, security
+# headers, and static-asset caching. Every module-dependent block is wrapped
+# in <IfModule> so this degrades gracefully if a module isn't enabled —
+# worst case those specific lines no-op instead of breaking the site.
+# ==========================================================================
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # Force HTTPS
+  RewriteCond %{HTTPS} off
+  RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+  # Force the apex host. Every canonical, og:url and sitemap entry in this
+  # project points at https://naturesvillageresort.com/ (no www), but the
+  # HTTPS rule above preserves %{HTTP_HOST}, so www.* would happily serve a
+  # complete second copy of the site. Collapse it to one host so search
+  # engines, analytics and the booking-engine referrer all agree.
+  RewriteCond %{HTTP_HOST} ^www\.(.+)$ [NC]
+  RewriteRule ^ https://%1%{REQUEST_URI} [L,R=301]
+
+  # /index.html -> / (avoid two URLs for the same homepage)
+  RewriteCond %{THE_REQUEST} ^[A-Z]{3,9}\ /index\.html[?\s] [NC]
+  RewriteRule ^index\.html$ / [R=301,L]
+
+  # /page.html -> /page/ (matches the canonical/OG URLs already in <head>)
+  RewriteCond %{THE_REQUEST} ^[A-Z]{3,9}\ /([^.\s]+)\.html[?\s] [NC]
+  RewriteRule ^ /%1/ [R=301,L]
+
+  # Serve the real .html file for the clean URL, without exposing it
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule ^([^/]+)/?$ /$1.html [L]
+</IfModule>
+
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set Permissions-Policy "geolocation=(), microphone=(), camera=()"
+  Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+
+  # Content-Security-Policy.
+  # The site has no inline <script> blocks, no inline event handlers and no
+  # javascript: URLs — verified across all 10 pages — so script-src can stay
+  # strict with no 'unsafe-inline'. JSON-LD blocks are data, not executable
+  # script, and are unaffected.
+  #
+  # Every allowed origin below is here for a specific reason. Removing one
+  # breaks the feature named beside it; adding an integration means adding
+  # its origin here in the same pass, or it will fail silently in production.
+  #   unpkg.com          Lucide icons (primary source)
+  #   cdn.jsdelivr.net   Lucide fallback mirror + pdf.js mirror
+  #   cdnjs.cloudflare   pdf.js mirror
+  #   fonts.googleapis   Google Fonts stylesheet
+  #   fonts.gstatic.com  Google Fonts font files
+  #   formsubmit.co      contact + events form delivery (AJAX endpoint)
+  #   www.google.com     Google Maps embed on /contact/ (frame-src)
+  #   frame-src 'self'   step 2 of the restaurant menu's degradation chain
+  #                      (useEmbed() in custom.js) frames the menu PDF from our
+  #                      own origin. frame-src does NOT fall back to default-src
+  #                      once it is declared, so without 'self' here that frame
+  #                      is refused and the guest gets a blank stage instead of
+  #                      the browser's own PDF viewer.
+  #   media-src 'self'   the hero background video on / is a self-hosted MP4
+  #                      under assets/video. It used to be a YouTube embed,
+  #                      which needed frame-src for youtube-nocookie.com;
+  #                      that entry is gone with it, so the policy is a little
+  #                      tighter than before rather than looser.
+  #   *.elfsight.com /   live review widgets on / and /testimonials/ :
+  #   *.elfsightcdn.com  static.elfsight.com serves the loader the homepage
+  #                      embed uses and elfsightcdn.com the one /testimonials/
+  #                      uses (the vendor's newer host — both are live, and each
+  #                      page's embed snippet names its own, so both are listed
+  #                      rather than rewriting a working embed);
+  #                      universe-static.elfsightcdn.com the widget chunks,
+  #                      core.service + service-reviews-ultimate the review
+  #                      data, phosphor.utils the icon sprites and the avatar
+  #                      proxy. Missing the loader host is not a soft failure:
+  #                      the section renders completely empty.
+  #   blob:              pdf.js worker shim and rendered page blobs
+  #   data:              inline SVG placeholder for failed images (styles.css),
+  #                      and the review widget's icon font, which it inlines as
+  #                      a base64 woff rather than fetching — without data: in
+  #                      font-src its stars and platform glyphs render as boxes
+  # style-src keeps 'unsafe-inline' because pdf.js sets inline styles on the
+  # canvas it renders into; that is library behaviour we don't control.
+  # img-src allows https: for one reason: the review widget renders reviewer
+  # avatars served from whichever platform each review came from — Google,
+  # Tripadvisor, Booking, Facebook — each on its own rotating CDN hostname.
+  # That list cannot be enumerated and would fail silently as it changed.
+  # Images can't execute, script-src stays strict with no 'unsafe-inline' or
+  # 'unsafe-eval', and object-src is 'none', so this is the narrowest
+  # relaxation that keeps the widget honest. Do NOT widen script-src the same
+  # way.
+  Header always set Content-Security-Policy "default-src 'self'; script-src 'self' https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://elfsightcdn.com https://static.elfsight.com https://universe-static.elfsightcdn.com blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://formsubmit.co https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://core.service.elfsight.com https://service-reviews-ultimate.elfsight.com https://elfsightcdn.com https://static.elfsight.com https://universe-static.elfsightcdn.com blob:; form-action 'self' https://formsubmit.co; media-src 'self'; frame-src 'self' https://www.google.com; frame-ancestors 'self'; base-uri 'self'; object-src 'none'"
+</IfModule>
+
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType image/jpeg "access plus 1 year"
+  ExpiresByType image/png "access plus 1 year"
+  ExpiresByType image/webp "access plus 1 year"
+  ExpiresByType video/mp4 "access plus 1 year"
+  ExpiresByType text/css "access plus 1 month"
+  ExpiresByType application/javascript "access plus 1 month"
+  ExpiresByType font/otf "access plus 1 year"
+  ExpiresByType font/ttf "access plus 1 year"
+  ExpiresByType font/woff "access plus 1 year"
+  ExpiresByType font/woff2 "access plus 1 year"
+</IfModule>
+
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json image/svg+xml
+</IfModule>
+
+# Self-hosted webfonts (assets/font) — many Apache/shared-hosting configs
+# don't ship these MIME types by default, so the browser silently refuses
+# to apply the font instead of erroring loudly. Force the type explicitly
+# and allow cross-origin use (needed if the site is ever reached via both
+# the apex and www hosts, which counts as cross-origin for font loading).
+<IfModule mod_mime.c>
+  # Hero background video. Shared hosting usually knows this one, but a wrong
+  # or missing type makes the browser refuse the file outright rather than
+  # error visibly, and the hero silently falls back to its poster photo.
+  AddType video/mp4 .mp4
+  AddType font/otf .otf
+  AddType font/ttf .ttf
+  AddType font/woff .woff
+  AddType font/woff2 .woff2
+</IfModule>
+<IfModule mod_headers.c>
+  <FilesMatch "\.(otf|ttf|woff|woff2)$">
+    Header set Access-Control-Allow-Origin "*"
+  </FilesMatch>
+</IfModule>
+
+# Belt-and-braces: these are local-only folders (quarantined unused masters,
+# dev tooling output, editor config) that should never reach the server. If one
+# is uploaded by accident, refuse to serve it rather than exposing it publicly.
+<IfModule mod_rewrite.c>
+  RewriteRule ^(_unused|qa|\.playwright-mcp|\.claude)/ - [F,L]
+</IfModule>
+
+Options -Indexes
+ErrorDocument 404 /404.html
