@@ -120,12 +120,15 @@
     if (!header) return;
     var isOverlay = header.classList.contains("nvr-header--transparent");
     if (!isOverlay) return; // solid headers need no scroll handling
-    var onScroll = function () {
-      if (window.scrollY > 40) header.classList.add("is-scrolled");
-      else header.classList.remove("is-scrolled");
-    };
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
+    /* A 1px sentinel 40px down the page: once it leaves the viewport the
+       visitor has scrolled past 40px. No per-frame scroll handler needed. */
+    var sentinel = document.createElement("div");
+    sentinel.setAttribute("aria-hidden", "true");
+    sentinel.style.cssText = "position:absolute;top:40px;left:0;width:1px;height:1px;pointer-events:none;";
+    document.body.prepend(sentinel);
+    new IntersectionObserver(function (entries) {
+      header.classList.toggle("is-scrolled", !entries[0].isIntersecting);
+    }).observe(sentinel);
   }
 
   /* ---- Mobile drawer ---- */
@@ -565,7 +568,10 @@
   if (document.readyState === "complete") initHeroVideo();
   else window.addEventListener("load", initHeroVideo, { once: true });
 
-  /* ---- Hero parallax ---- */
+  /* ---- Hero parallax ----
+     CSS scroll-driven animation handles it where supported (styles.css,
+     .nvr-hero__media). This rAF-throttled handler is only the fallback. */
+  if (window.CSS && CSS.supports("animation-timeline: scroll()")) return;
   var ticking = false;
   function update() {
     var y = window.scrollY;
@@ -650,7 +656,7 @@
 
       if (!animate) {
         imgEl.src = gallery[index];
-        imgEl.alt = title + " — photo " + (index + 1) + " of " + gallery.length;
+        imgEl.alt = title + ", photo " + (index + 1) + " of " + gallery.length;
         counterEl.textContent = counterText;
         return;
       }
@@ -664,7 +670,7 @@
         if (swapped) return;
         swapped = true;
         imgEl.src = gallery[index];
-        imgEl.alt = title + " — photo " + (index + 1) + " of " + gallery.length;
+        imgEl.alt = title + ", photo " + (index + 1) + " of " + gallery.length;
         counterEl.textContent = counterText;
         imgEl.classList.remove("is-swapping");
       }
@@ -842,7 +848,7 @@
         descEl.appendChild(para_el);
       });
       descEl.hidden = !descParas.length;
-      modal.setAttribute("aria-label", title + " — details");
+      modal.setAttribute("aria-label", title + " details");
       imgEl.src = gallery[0];
       imgEl.alt = title;
 
@@ -890,7 +896,7 @@
           btn.setAttribute("data-title", title);
           var img = document.createElement("img");
           img.src = url;
-          img.alt = title + " — photo " + (i + 1) + " of " + gallery.length;
+          img.alt = title + ", photo " + (i + 1) + " of " + gallery.length;
           img.loading = "lazy";
           img.width = 150;
           img.height = 150;
@@ -1650,7 +1656,7 @@
       var first = pages[0];
       var last = pages[pages.length - 1];
       countEl.textContent = pages.length > 1
-        ? "Pages " + first + "–" + last + " of " + pageCount
+        ? "Pages " + first + "-" + last + " of " + pageCount
         : "Page " + first + " of " + pageCount;
       setDisabled(prevBtn, first <= 1);
       setDisabled(nextBtn, last >= pageCount);
@@ -1825,8 +1831,8 @@
       }
       if (bodyEl) {
         bodyEl.textContent = missing
-          ? "Sorry — we couldn't load the menu. Please call us on +63 922 851 2231 and we'll gladly talk you through it."
-          : "You can still read the complete menu as a PDF — it opens in a new tab.";
+          ? "Sorry, we couldn't load the menu. Please call us on +63 922 851 2231 and we'll gladly talk you through it."
+          : "You can still read the complete menu as a PDF. It opens in a new tab.";
       }
       /* Never offer a link that leads nowhere — and that means EVERY link
          to the file, the toolbar one included, not just this panel's. */

@@ -789,12 +789,6 @@ html:has(> body.nvr-lock) { overflow: hidden; }
    bottom edge so a row of cards with copy of different lengths still lines its
    buttons up. */
 .nvr-card__cta { margin-top: auto; align-self: flex-start; }
-.nvr-tag {
-  position: absolute; top: 1rem; left: 1rem;
-  background: rgba(var(--nvr-overlay-2-rgb),0.82); color: var(--nvr-white);
-  font-size: 0.68rem; letter-spacing: 0.16em; text-transform: uppercase;
-  padding: 0.4rem 0.8rem; border-radius: 2px; backdrop-filter: blur(4px);
-}
 
 /* Feature list w/ icons */
 .nvr-featurelist { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.7rem; }
@@ -974,6 +968,16 @@ html:has(> body.nvr-lock) { overflow: hidden; }
 .nvr-hero__media { position: absolute; inset: -8% 0; z-index: -2; will-change: transform; overflow: hidden; }
 .nvr-hero__media img { width: 100%; height: 100%; object-fit: cover; object-position: center 60%; animation: nvr-kenburns 20s var(--nvr-ease) both; }
 @keyframes nvr-kenburns { from { transform: scale(1.12); } to { transform: scale(1); } }
+/* Hero parallax, driven by the scroll position itself (no JS scroll handler).
+   Same curve as the old script: 0.12px of travel per px scrolled, over the
+   first viewport height. custom.js keeps a fallback for browsers without
+   scroll-driven animations. */
+@supports (animation-timeline: scroll()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .nvr-hero__media { animation: nvr-hero-parallax linear both; animation-timeline: scroll(root); animation-range: 0 100vh; }
+  }
+}
+@keyframes nvr-hero-parallax { to { transform: translateY(12vh); } }
 
 /* ---------- Hero background video (injected by initHeroVideo in custom.js) ----------
    A self-hosted <video> used as wallpaper. Same z-index as .nvr-hero__media
@@ -1068,27 +1072,6 @@ html:has(> body.nvr-lock) { overflow: hidden; }
 .nvr-hero__inner > *:nth-child(4) { animation-delay: 0.55s; }
 .nvr-hero__inner > *:nth-child(5) { animation-delay: 0.68s; }
 @keyframes nvr-rise { from { opacity: 0; transform: translateY(26px); } to { opacity: 1; transform: none; } }
-.nvr-hero__scroll {
-  position: absolute; bottom: 2rem; left: 50%; transform: translateX(-50%);
-  color: rgba(255,255,255,0.9); display: flex; flex-direction: column; align-items: center; gap: 0.5rem;
-  font-family: var(--nvr-sans); font-size: 0.64rem; letter-spacing: 0.26em; text-transform: uppercase;
-}
-.nvr-hero__scroll .nvr-ic { width: 22px; height: 22px; animation: nvr-bob 2.4s var(--nvr-ease) infinite; }
-.nvr-hero__scroll:hover { color: var(--nvr-white); }
-@keyframes nvr-bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(6px); } }
-@media (max-width: 600px) { .nvr-hero__scroll span { display: none; } }
-/* The cue is absolutely positioned against the hero, so once the hero's own
-   content is taller than the viewport the copy grows down THROUGH it: measured
-   collisions with the CTA row wherever the two CTAs stack (width <= 600px) and
-   the viewport is under ~695px tall. Re-measured Sept 2026 against the live
-   build, because the previous 660px threshold was set ~35px too low and the
-   chevron still landed on the "Discover Your Room" button — the client reported
-   it from a phone webview: 390x670 overlapped by 8px, 390x700 cleared by only
-   7px, 390x730 by 22px. Above 600px wide the CTAs sit side by side and the row
-   is short enough to clear comfortably (640x700 measured +53px).
-   Drop it below that rather than reserve space for it on every screen; at that
-   height the page is visibly cut off already, which is all the cue was saying. */
-@media (max-height: 720px) { .nvr-hero__scroll { display: none; } }
 
 /* ---------- Intro ---------- */
 .nvr-intro { display: grid; gap: clamp(2.5rem, 5vw, 5rem); align-items: center; }
@@ -2799,19 +2782,28 @@ ul.stay-included {
   object-fit: cover;
 }
 
-/* Stacked pool images */
-.facilities-feature__media--stack {
+/* ---------- Farm + park, side by side ---------- */
+.facilities-pair__grid {
   display: grid;
-  gap: 1rem;
-  grid-template-columns: 1fr;
+  gap: clamp(3rem, 6vw, 4.5rem);
 }
-@media (min-width: 520px) {
-  .facilities-feature__media--stack {
-    grid-template-columns: 1.5fr 1fr;
-    align-items: end;
-  }
-  .facilities-feature__media--stack img:first-child { grid-column: 1 / -1; }
+@media (min-width: 900px) {
+  /* Offset the second column so the pair doesn't read as two equal cards. */
+  .facilities-pair__grid { grid-template-columns: 1.15fr 1fr; align-items: start; }
+  .facilities-pair__item + .facilities-pair__item { margin-top: clamp(3rem, 7vw, 6rem); }
 }
+.facilities-pair__media { margin-bottom: 1.6rem; }
+.facilities-pair__media img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--nvr-radius-lg);
+  box-shadow: var(--nvr-shadow-md);
+  object-fit: cover;
+}
+.facilities-pair__media--duo { display: grid; grid-template-columns: 1.5fr 1fr; gap: 1rem; }
+.facilities-pair__media--duo img { aspect-ratio: 3 / 4; height: 100%; }
+.facilities-pair__item p { max-width: 60ch; }
+.facilities-pair__item .nvr-textlink { margin-top: 0.4rem; }
 
 .facilities-feature__text .nvr-featurelist {
   margin: 1.6rem 0 1.8rem;
@@ -2860,10 +2852,12 @@ ul.stay-included {
 
 /* ---------- Intro / Story / Interior split rows ---------- */
 .dine-intro,
-.dine-story,
 .dine-interior {
   align-items: center;
 }
+/* Story is stacked: text column on top, wide image underneath. */
+.dine-story { display: grid; gap: clamp(2rem, 4vw, 3rem); }
+.dine-story__text { max-width: 65ch; }
 .dine-intro__media img,
 .dine-story__media img,
 .dine-interior__media img {
@@ -3029,6 +3023,8 @@ ul.stay-included {
   .dine-factlist li { border-radius: var(--nvr-radius-lg); }
 }
 
+.dine-story__media img { aspect-ratio: 21 / 9; }
+
 /* On wide screens, put the interior image on the left, text on the right (as marked up).
    Story keeps text left / image right (natural source order). */
 @media (min-width: 720px) {
@@ -3036,7 +3032,15 @@ ul.stay-included {
   .dine-interior__text { order: 1; }
 }
 
-/* ---------- Signature drinks ---------- */
+/* ---------- Signature drinks ----------
+   One featured card plus two stacked side cards, not three equal cards. */
+@media (min-width: 720px) {
+  .dine-drinks { grid-template-columns: 1.1fr 1fr; }
+  .dine-drinks .nvr-card:first-child { grid-row: span 2; }
+  .dine-drinks .nvr-card:first-child .nvr-card__media { aspect-ratio: auto; flex: 1; min-height: 18rem; }
+  .dine-drinks .nvr-card:not(:first-child) { flex-direction: row; }
+  .dine-drinks .nvr-card:not(:first-child) .nvr-card__media { aspect-ratio: auto; flex: 0 0 38%; }
+}
 .dine-drinks .nvr-card__body {
   text-align: left;
 }
@@ -3733,21 +3737,6 @@ ul.stay-included {
   transition: transform 0.6s var(--nvr-ease);
 }
 .press-feature:hover .press-feature__media img { transform: scale(1.05); }
-.press-feature__kind {
-  position: absolute;
-  top: 0.85rem; left: 0.85rem;
-  background: rgba(var(--nvr-overlay-2-rgb), 0.85);
-  color: var(--nvr-white);
-  font-family: var(--nvr-sans);
-  font-size: 0.62rem;
-  font-weight: 500;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  padding: 0.35rem 0.7rem;
-  border-radius: 2px;
-  -webkit-backdrop-filter: blur(4px);
-  backdrop-filter: blur(4px);
-}
 .press-feature__body { display: block; padding: clamp(1.2rem, 2.5vw, 1.8rem); }
 .press-feature__meta {
   display: flex;
@@ -3958,9 +3947,12 @@ ul.stay-included {
   color: var(--nvr-forest);
   margin-bottom: 1.4rem;
 }
+/* Wider measure and a smaller top size keep the pull quote to three lines
+   on desktop instead of five. */
+.testi-feature .nvr-container--narrow { max-width: 62rem; }
 .testi-feature__quote {
   font-family: var(--nvr-serif);
-  font-size: clamp(1.7rem, 1.1rem + 2.6vw, 3rem);
+  font-size: clamp(1.45rem, 1rem + 1.6vw, 2.1rem);
   line-height: 1.28;
   font-style: italic;
   color: var(--nvr-forest);
@@ -4441,3 +4433,50 @@ ul.stay-included {
 .dev-contact .nvr-lead { margin-bottom: 0; color: var(--nvr-charcoal); }
 .dev-contact__list a { color: var(--nvr-forest); border-bottom: 1px solid transparent; }
 .dev-contact__list a:hover { color: var(--nvr-brass-ink); border-bottom-color: currentColor; }
+
+/* ==========================================================================
+   FULL-ROW GRIDS
+   Odd item counts (7 rooms, 7 certificates, 5 values) left one or two cards
+   alone on the last row with an empty gap beside them. Each grid below
+   re-spans cells so every row is full at every breakpoint.
+   ========================================================================== */
+
+/* Rooms: 6 rooms + Lola's House. Lola's House, a whole house rather than a
+   room, takes the last row on its own as a wide horizontal card. */
+@media (min-width: 720px) {
+  .stay-grid > .nvr-card:last-child { grid-column: 1 / -1; }
+}
+@media (min-width: 1000px) {
+  .stay-grid > .nvr-card:last-child { flex-direction: row; }
+  .stay-grid > .nvr-card:last-child .nvr-card__media { flex: 0 0 50%; aspect-ratio: auto; min-height: 20rem; }
+}
+
+/* Certificates: the newest award leads as a wide horizontal card; at three
+   columns the last one does too, giving 2+1 / 1+1+1 / 1+2. */
+@media (min-width: 720px) {
+  .press-certs > .press-cert:first-child { grid-column: 1 / -1; }
+}
+@media (min-width: 1000px) {
+  .press-certs > .press-cert:first-child,
+  .press-certs > .press-cert:last-child { grid-column: span 2; }
+}
+@media (min-width: 720px) {
+  .press-certs > .press-cert:first-child { display: grid; grid-template-columns: 1.2fr 1fr; }
+  .press-certs > .press-cert:first-child .press-cert__media { aspect-ratio: auto; height: 100%; min-height: 14rem; }
+  .press-certs > .press-cert:first-child .press-cert__caption { border-top: 0; border-left: 1px solid var(--nvr-line); align-self: center; }
+}
+@media (min-width: 1000px) {
+  .press-certs > .press-cert:last-child { display: grid; grid-template-columns: 1.2fr 1fr; }
+  .press-certs > .press-cert:last-child .press-cert__media { aspect-ratio: auto; height: 100%; min-height: 14rem; }
+  .press-certs > .press-cert:last-child .press-cert__caption { border-top: 0; border-left: 1px solid var(--nvr-line); align-self: center; }
+}
+
+/* Values: five cards, as 2 + 3 on a six-column grid. */
+@media (min-width: 720px) and (max-width: 999px) {
+  .about-values > :last-child { grid-column: 1 / -1; }
+}
+@media (min-width: 1000px) {
+  .about-values { grid-template-columns: repeat(6, 1fr); }
+  .about-values > * { grid-column: span 2; }
+  .about-values > :nth-child(-n+2) { grid-column: span 3; }
+}
