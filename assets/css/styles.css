@@ -289,6 +289,13 @@ body.nvr {
 .nvr-container { width: 100%; max-width: var(--nvr-maxw); margin-inline: auto; padding-inline: var(--nvr-gutter); }
 .nvr-container--narrow { max-width: var(--nvr-maxw-narrow); }
 .nvr-section { padding-block: var(--nvr-section-y); }
+/* Two sections in a row on the same ground read as one block with a doubled
+   gap (2 x --nvr-section-y of empty space). The second drops its top padding
+   so the rhythm stays one gap per change of content. "Plain" = the cream page
+   ground, which paper is indistinguishable from. */
+.nvr-section--tint + .nvr-section--tint,
+.nvr-section:not(.nvr-section--tint, .nvr-section--forest, .nvr-section--brass, .nvr-section--sage, .events-inquire)
+  + .nvr-section:not(.nvr-section--tint, .nvr-section--forest, .nvr-section--brass, .nvr-section--sage, .events-inquire) { padding-top: 0; }
 .nvr-section--tint { background: var(--nvr-linen); }
 .nvr-section--paper { background: var(--nvr-paper); }
 /* Three band grounds, deliberately mixed rather than one interior treatment
@@ -316,7 +323,9 @@ body.nvr {
    1.90:1 on sage. --nvr-ink is the site's on-brass pairing for type at 5.5:1;
    charcoal on sage reads 6.1:1. Forest is the reverse —
    white 8.28:1, cream 7.86:1 — so it takes light type and nothing else. */
-.nvr-section--forest { background: var(--nvr-forest); color: var(--nvr-white); }
+/* Deep green, not the footer's brown: a brown band directly above the brown
+   footer read as one slab. White measures ~12:1 on this ground. */
+.nvr-section--forest { background: var(--nvr-sage-brass-deep); color: var(--nvr-white); }
 .nvr-section--brass { background: var(--nvr-brass); color: var(--nvr-ink); }
 .nvr-section--sage  { background: var(--nvr-sage);  color: var(--nvr-charcoal); }
 /* Headings on any dark context must stay light — high enough specificity to beat
@@ -340,6 +349,9 @@ body.nvr {
 @media (min-width: 720px)  { .nvr-grid--2 { grid-template-columns: 1fr 1fr; } }
 @media (min-width: 720px)  { .nvr-grid--3 { grid-template-columns: repeat(2, 1fr); } }
 @media (min-width: 1000px) { .nvr-grid--3 { grid-template-columns: repeat(3, 1fr); } }
+/* A --3 grid holding exactly three cards goes straight to one row of three:
+   at two columns the third card would sit alone on its own row. */
+@media (min-width: 720px) { .nvr-grid--3:has(> :nth-child(3):last-child) { grid-template-columns: repeat(3, 1fr); } }
 .nvr-center { text-align: center; }
 
 /* ---------- 4. Editorial type components ---------- */
@@ -391,6 +403,11 @@ body.nvr {
               border-color 0.4s var(--nvr-ease), transform 0.4s var(--nvr-ease),
               box-shadow 0.4s var(--nvr-ease);
 }
+/* Button labels never break onto a second line from tablet up; card buttons
+   get slightly tighter side padding so "Check availability" fits a 3-up card
+   at 1024px. Phones keep wrapping as a safety valve for long labels. */
+@media (min-width: 600px) { .nvr-btn { white-space: nowrap; } }
+.nvr-card .nvr-btn { padding-inline: 1.5rem; }
 /* Gold → forest-green on hover: high contrast in both states */
 .nvr-btn:hover { background: var(--nvr-forest); border-color: var(--nvr-forest); color: var(--nvr-cream); transform: translateY(-2px); box-shadow: 0 12px 26px rgba(var(--nvr-forest-rgb),0.20); }
 /* Press feedback: snappier duration than the hover transition, so the tap
@@ -1203,7 +1220,7 @@ html:has(> body.nvr-lock) { overflow: hidden; }
   align-items: center;
   gap: 0.75rem;
   font-family: var(--nvr-sans);
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.2em;
   text-transform: uppercase;
@@ -1263,7 +1280,7 @@ html:has(> body.nvr-lock) { overflow: hidden; }
 @media (max-width: 779px) {
   .nvr-space--feature { aspect-ratio: 1 / 1; }
   .nvr-space--feature .nvr-space__label { max-width: none; padding-right: 4rem; }
-  .nvr-space__eyebrow { font-size: 0.62rem; letter-spacing: 0.16em; gap: 0.6rem; }
+  .nvr-space__eyebrow { font-size: 0.72rem; letter-spacing: 0.14em; gap: 0.6rem; }
   .nvr-space__eyebrow::before { width: 1.4rem; }
   .nvr-space__note { font-size: 0.9rem; }
   .nvr-space__go { width: 2.75rem; height: 2.75rem; }
@@ -1337,9 +1354,12 @@ html:has(> body.nvr-lock) { overflow: hidden; }
    scoped to their own modifier class now (see .about-cta below), the way the
    page heroes already do it — so this block is the only place the CTA's layout
    and colour live. */
+/* Closing bands use the deep green of the dark sections (--nvr-sage-brass-deep
+   #2f3919) over their photo, not the slate estate overlay, so every dark
+   surface on a page is the same green. */
 .nvr-cta {
   background:
-    linear-gradient(rgba(var(--nvr-overlay-2-rgb),0.82), rgba(var(--nvr-overlay-2-rgb),0.86)),
+    linear-gradient(rgba(47, 57, 25, 0.86), rgba(47, 57, 25, 0.9)),
     url("../images/Home/June-22-6PM-1-1024x683.webp") center/cover fixed;
   color: var(--nvr-white); text-align: center;
   padding-block: clamp(4.5rem, 8vw, 8rem);
@@ -1407,13 +1427,14 @@ html:has(> body.nvr-lock) { overflow: hidden; }
   .about-intro__badge { left: 0.8rem; bottom: -0.9rem; padding: 0.8rem 1rem; font-size: 0.95rem; }
 }
 
-/* ---------- Intro slider (9:16 image slideshow variant) ---------- */
+/* ---------- Intro slider ----------
+   4:5, the same frame as the home intro image. The slides are 3:2 landscape
+   photos; the old 9:16 phone-shaped frame cut away almost two thirds of each. */
 .about-slider__track {
   position: relative;
   width: 100%;
-  max-width: 420px;
   margin: 0 auto;
-  aspect-ratio: 9 / 16;
+  aspect-ratio: 4 / 5;
   border-radius: var(--nvr-radius-lg);
   overflow: hidden;
   box-shadow: var(--nvr-shadow-md);
@@ -1478,7 +1499,7 @@ html:has(> body.nvr-lock) { overflow: hidden; }
    the shared .nvr-cta component in the home section above. */
 .about-cta {
   background:
-    linear-gradient(rgba(var(--nvr-overlay-2-rgb),0.82), rgba(var(--nvr-overlay-2-rgb),0.86)),
+    linear-gradient(rgba(47, 57, 25, 0.86), rgba(47, 57, 25, 0.9)),
     url("../images/Home/June-22-6PM-1-1024x683.webp") center/cover fixed;
 }
 @media (max-width: 700px) { .about-cta { background-attachment: scroll; } }
@@ -1632,6 +1653,10 @@ ul.stay-included {
 
 /* Venue card = clickable button reset onto the shared card look */
 .events-venuegrid { align-items: stretch; }
+/* 16 indoor and 4 outdoor venues: four across fills every row; three across
+   left one venue alone on the last row of each group. */
+@media (min-width: 1000px) and (max-width: 1099px) { .events-venuegrid { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1100px) { .events-venuegrid { grid-template-columns: repeat(4, 1fr); gap: clamp(1.25rem, 1.6vw, 1.75rem); } }
 .events-venue {
   appearance: none;
   -webkit-appearance: none;
@@ -1783,7 +1808,7 @@ ul.stay-included {
 .events-field { display: flex; flex-direction: column; gap: 0.45rem; }
 .events-field label {
   font-family: var(--nvr-sans);
-  font-size: 0.74rem;
+  font-size: 0.8rem;
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -2788,20 +2813,16 @@ ul.stay-included {
   gap: clamp(3rem, 6vw, 4.5rem);
 }
 @media (min-width: 900px) {
-  /* Offset the second column so the pair doesn't read as two equal cards. */
-  .facilities-pair__grid { grid-template-columns: 1.15fr 1fr; align-items: start; }
-  .facilities-pair__item + .facilities-pair__item { margin-top: clamp(3rem, 7vw, 6rem); }
+  .facilities-pair__grid { grid-template-columns: 1fr 1fr; align-items: start; }
 }
 .facilities-pair__media { margin-bottom: 1.6rem; }
 .facilities-pair__media img {
   width: 100%;
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 3 / 2;
   border-radius: var(--nvr-radius-lg);
   box-shadow: var(--nvr-shadow-md);
   object-fit: cover;
 }
-.facilities-pair__media--duo { display: grid; grid-template-columns: 1.5fr 1fr; gap: 1rem; }
-.facilities-pair__media--duo img { aspect-ratio: 3 / 4; height: 100%; }
 .facilities-pair__item p { max-width: 60ch; }
 .facilities-pair__item .nvr-textlink { margin-top: 0.4rem; }
 
@@ -2852,12 +2873,10 @@ ul.stay-included {
 
 /* ---------- Intro / Story / Interior split rows ---------- */
 .dine-intro,
+.dine-story,
 .dine-interior {
   align-items: center;
 }
-/* Story is stacked: text column on top, wide image underneath. */
-.dine-story { display: grid; gap: clamp(2rem, 4vw, 3rem); }
-.dine-story__text { max-width: 65ch; }
 .dine-intro__media img,
 .dine-story__media img,
 .dine-interior__media img {
@@ -3023,8 +3042,6 @@ ul.stay-included {
   .dine-factlist li { border-radius: var(--nvr-radius-lg); }
 }
 
-.dine-story__media img { aspect-ratio: 21 / 9; }
-
 /* On wide screens, put the interior image on the left, text on the right (as marked up).
    Story keeps text left / image right (natural source order). */
 @media (min-width: 720px) {
@@ -3032,15 +3049,7 @@ ul.stay-included {
   .dine-interior__text { order: 1; }
 }
 
-/* ---------- Signature drinks ----------
-   One featured card plus two stacked side cards, not three equal cards. */
-@media (min-width: 720px) {
-  .dine-drinks { grid-template-columns: 1.1fr 1fr; }
-  .dine-drinks .nvr-card:first-child { grid-row: span 2; }
-  .dine-drinks .nvr-card:first-child .nvr-card__media { aspect-ratio: auto; flex: 1; min-height: 18rem; }
-  .dine-drinks .nvr-card:not(:first-child) { flex-direction: row; }
-  .dine-drinks .nvr-card:not(:first-child) .nvr-card__media { aspect-ratio: auto; flex: 0 0 38%; }
-}
+/* ---------- Signature drinks ---------- */
 .dine-drinks .nvr-card__body {
   text-align: left;
 }
@@ -3130,21 +3139,21 @@ ul.stay-included {
 }
 
 /* ---------- Photo gallery ----------
-   Editorial masonry: a 4-column grid with dense auto-flow so wide
-   (landscape) and tall (portrait) tiles interlock with square ones instead
-   of leaving gaps. Orientation is the only thing that varies per tile —
-   sizing/cropping is handled the same way as every other card image on
-   the site (object-fit: cover). */
+   A uniform grid of 4:3 tiles: the photos are all 4:3, so nothing is cropped,
+   and 18 tiles fill every row at 6, 3 and 2 columns. (The earlier masonry
+   mixed wide and tall tiles, left holes at the end and cut tall tiles to
+   half the photo.) */
 .dine-gallery__grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  grid-auto-rows: 190px;
-  grid-auto-flow: dense;
+  grid-template-columns: repeat(2, 1fr);
   gap: clamp(0.6rem, 1vw, 1rem);
 }
+@media (min-width: 600px) { .dine-gallery__grid { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 1000px) { .dine-gallery__grid { grid-template-columns: repeat(6, 1fr); } }
 .dine-gallery__tile {
   position: relative;
   overflow: hidden;
+  aspect-ratio: 4 / 3;
   border-radius: var(--nvr-radius);
   background: var(--nvr-linen);
 }
@@ -3157,12 +3166,6 @@ ul.stay-included {
 }
 .dine-gallery__tile:hover img,
 .dine-gallery__tile:focus-visible img { transform: scale(1.06); }
-.dine-gallery__tile--wide { grid-column: span 2; }
-.dine-gallery__tile--tall { grid-row: span 2; }
-
-@media (max-width: 720px) {
-  .dine-gallery__grid { grid-template-columns: repeat(2, 1fr); grid-auto-rows: 150px; }
-}
 
 /* ---------- Guest quote ---------- */
 .dine-quote {
@@ -3744,7 +3747,7 @@ ul.stay-included {
   align-items: center;
   gap: 0.15rem 0;
   font-family: var(--nvr-sans);
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -3773,7 +3776,7 @@ ul.stay-included {
   align-items: center;
   gap: 0.5rem;
   font-family: var(--nvr-sans);
-  font-size: 0.72rem;
+  font-size: 0.76rem;
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -3976,7 +3979,7 @@ ul.stay-included {
 /* ---------- Closing CTA band ---------- */
 .testi-cta {
   background:
-    linear-gradient(rgba(var(--nvr-overlay-2-rgb),0.82), rgba(var(--nvr-overlay-2-rgb),0.88)),
+    linear-gradient(rgba(47, 57, 25, 0.86), rgba(47, 57, 25, 0.9)),
     url("../images/Home/final-aerial-1024x683.webp") center/cover fixed;
   color: var(--nvr-white);
   text-align: center;
@@ -4055,7 +4058,7 @@ ul.stay-included {
 
 .contact-field label {
   font-family: var(--nvr-sans);
-  font-size: 0.74rem;
+  font-size: 0.8rem;
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -4270,7 +4273,7 @@ ul.stay-included {
 .contact-details__label {
   display: block;
   font-family: var(--nvr-sans);
-  font-size: 0.66rem;
+  font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
@@ -4397,7 +4400,7 @@ ul.stay-included {
 .dev-eyebrow {
   display: block;
   font-family: var(--nvr-sans);
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.2em;
   text-transform: uppercase;
